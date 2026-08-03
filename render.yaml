@@ -20,7 +20,11 @@ services:
         value: "0"
       - key: OWNER_EMAIL
         sync: false
-      - key: RESEND_API_KEY
+      - key: MAIL_PROVIDER
+        value: mailjet
+      - key: MAILJET_API_KEY
+        sync: false
+      - key: MAILJET_SECRET_KEY
         sync: false
       - key: MAIL_DEFAULT_SENDER
         sync: false
