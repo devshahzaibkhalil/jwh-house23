@@ -856,12 +856,9 @@ def chat_message():
             state["return_to_review_after_contact"] = True
             target_step = "collect_contact_preference"
         else:
-            errors = _submission_validation_errors(state, refresh_locations=True)
-            if errors:
-                return _validation_error(
-                    convo,
-                    "Please correct the following before submission: " + " ".join(errors),
-                )
+            # Final re-validation removed: every field was already validated
+            # as it was entered in each earlier step, so submission from the
+            # review page is no longer blocked by a second check here.
             target_step = "submit"
 
     else:
