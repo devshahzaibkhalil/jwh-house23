@@ -59,7 +59,19 @@ class Config:
     # Email is sent via the Resend HTTPS API (not SMTP) because Render blocks
     # outbound SMTP ports 25/465/587 on free instances, and blocks port 25
     # entirely even on paid instances. Get a key at https://resend.com/api-keys.
+    # MAIL_PROVIDER selects the transport: "mailjet" (default), "smtp2go",
+    # "brevo", "sendgrid" or "resend". Leave it unset and the provider is
+    # inferred from whichever key is present. Every option except Resend can
+    # verify a single sender address by emailing it a confirmation link, so no
+    # DNS access or domain ownership is needed. Resend verifies domains only.
+    MAIL_PROVIDER = os.environ.get("MAIL_PROVIDER", "")
+    SMTP2GO_API_KEY = os.environ.get("SMTP2GO_API_KEY", "")
+    MAILJET_API_KEY = os.environ.get("MAILJET_API_KEY", "")
+    MAILJET_SECRET_KEY = os.environ.get("MAILJET_SECRET_KEY", "")
+    BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
+    SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
     RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+    MAIL_API_KEY = os.environ.get("MAIL_API_KEY", "")
     MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", "")
     MAIL_SENDER_NAME = os.environ.get("MAIL_SENDER_NAME", "James Wholesale Homes")
     MAIL_TIMEOUT = int(os.environ.get("MAIL_TIMEOUT", 20))
