@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{% block title %}Admin{% endblock %} — James Wholesale Homes</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; margin: 0; background: #FAF7F3; color: #1F2933; }
+  .shell { display: flex; min-height: 100vh; }
+  .sidebar { width: 220px; background: #16243E; color: white; padding: 20px 0; flex-shrink: 0; }
+  .sidebar .logo { padding: 0 18px 18px; }
+  .sidebar .logo img { display:block; width:154px; height:68px; object-fit:contain; object-position:left center; }
+  .sidebar .logo small { display:block; color:#C9D3E4; font-size:10px; margin-top:4px; }
+  .sidebar .logo span { color: #E3562B; }
+  .sidebar a { display: block; padding: 10px 20px; color: #C9D3E4; text-decoration: none; font-size: 13px; }
+  .sidebar a:hover, .sidebar a.active { background: rgba(255,255,255,0.06); color: white; border-left: 3px solid #E3562B; }
+  .main { flex: 1; padding: 28px 36px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  h1 { font-family: 'Manrope', sans-serif; font-size: 22px; color: #16243E; margin: 0; }
+  .logout { color: #6B7280; text-decoration: none; font-size: 13px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .card { background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 18px; }
+  .card .num { font-family: 'Manrope', sans-serif; font-size: 28px; font-weight: 800; color: #16243E; }
+  .card .label { font-size: 12px; color: #6B7280; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; }
+  th, td { text-align: left; padding: 12px 14px; font-size: 13px; border-bottom: 1px solid #EEF1F5; }
+  th { background: #F3F5F8; color: #52606D; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.03em; }
+  tr:hover td { background: #FAFBFD; }
+  a.reflink { color: #E3562B; text-decoration: none; font-weight: 600; }
+  .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .badge.new { background: #EAF2FF; color: #1D4ED8; }
+  .badge.qualified { background: #E8F5EE; color: #24705A; }
+  .flash-wrap { margin-bottom: 16px; }
+  .flash { padding: 11px 13px; margin-bottom: 8px; border-radius: 9px; font-size: 13px; border: 1px solid transparent; }
+  .flash.error { color: #9F231B; background: #FFF0EE; border-color: #F4C4BE; }
+  .flash.success { color: #176146; background: #EAF8F2; border-color: #B9DFD0; }
+  .settings-intro { display:flex; justify-content:space-between; gap:20px; align-items:center; margin-bottom:18px; padding:20px; border-radius:16px; color:white; background:linear-gradient(135deg,#1D3154,#14233F); box-shadow:0 12px 30px rgba(20,35,63,.12); }
+  .settings-intro h2 { margin:3px 0 6px; font:800 20px 'Manrope',sans-serif; }
+  .settings-intro p { margin:0; max-width:630px; color:#CDD6E4; font-size:12px; line-height:1.55; }
+  .settings-kicker { color:#FF9B7B; font-size:9px; font-weight:800; letter-spacing:.12em; }
+  .current-account { min-width:210px; padding:12px 14px; border:1px solid rgba(255,255,255,.14); border-radius:12px; background:rgba(255,255,255,.06); }
+  .current-account small,.current-account strong { display:block; }
+  .current-account small { color:#BFCBDD; font-size:10px; }
+  .current-account strong { margin-top:5px; font-size:12px; overflow-wrap:anywhere; }
+  .settings-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+  .settings-card { background:white; border:1px solid #E0E6EE; border-radius:16px; padding:19px; box-shadow:0 8px 24px rgba(20,35,63,.05); }
+  .settings-card-head { display:flex; gap:10px; align-items:flex-start; padding-bottom:14px; margin-bottom:14px; border-bottom:1px solid #EDF1F5; }
+  .settings-card-head>span { width:30px; height:30px; display:grid; place-items:center; border-radius:9px; color:white; background:#E3562B; font-weight:800; }
+  .settings-card-head strong,.settings-card-head small { display:block; }
+  .settings-card-head strong { color:#16243E; font-size:14px; }
+  .settings-card-head small { color:#6B7280; font-size:10px; margin-top:4px; line-height:1.4; }
+  .settings-card label { display:block; margin-top:12px; color:#16243E; font-size:11px; font-weight:700; }
+  .settings-card input { width:100%; margin-top:6px; padding:10px 11px; border:1px solid #C9D3DF; border-radius:9px; font-size:13px; }
+  .settings-card input:focus { outline:3px solid rgba(227,86,43,.13); border-color:#E3562B; }
+  .settings-primary { width:100%; margin-top:18px; padding:11px 13px; border:0; border-radius:9px; color:white; background:#E3562B; font-weight:800; cursor:pointer; }
+  .settings-primary:hover { background:#C94720; }
+  @media(max-width:850px){ .settings-grid{grid-template-columns:1fr}.settings-intro{align-items:flex-start;flex-direction:column}.current-account{width:100%}.main{padding:22px 18px}.sidebar{width:190px} }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="sidebar">
+    <div class="logo"><img src="{{ url_for('static', filename='img/jwh-logo.png') }}" alt="James Wholesale Homes"><small>Administration Portal</small></div>
+    <a href="{{ url_for('admin.dashboard') }}">Overview</a>
+    <a href="{{ url_for('admin.leads_list') }}">Leads</a>
+    <a href="#">Conversations</a>
+    <a href="#">Properties</a>
+    <a href="#">Recent Projects</a>
+    <a href="#">Public Statistics</a>
+    <a href="#">Uploaded Files</a>
+    <a href="#">FAQ Management</a>
+    <a href="{{ url_for('admin.users_list') }}">Users &amp; Roles</a>
+    <a href="{{ url_for('admin.security_centre') }}">Security Centre</a>
+    <a href="{{ url_for('admin.account_settings') }}">Account Settings</a>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <h1>{% block heading %}Overview{% endblock %}</h1>
+      <a class="logout" href="{{ url_for('admin.logout') }}">Sign out</a>
+    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}<div class="flash-wrap">{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+</div>
+</body>
+</html>

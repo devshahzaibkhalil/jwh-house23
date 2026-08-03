@@ -1,0 +1,80 @@
+{% extends "admin/base.html" %}
+{% block title %}Security Centre{% endblock %}
+{% block heading %}Security Centre{% endblock %}
+{% block content %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+    <div style="background:{{ '#E8F5EE' if category=='success' else '#FDECEA' }}; color:{{ '#24705A' if category=='success' else '#B42318' }}; padding:10px 12px; border-radius:8px; font-size:13px; margin-bottom:16px;">{{ message }}</div>
+  {% endfor %}
+{% endwith %}
+
+<div class="cards">
+  <div class="card"><div class="num">{{ total_users }}</div><div class="label">Administrator accounts</div></div>
+  <div class="card"><div class="num">{{ locked_accounts|length }}</div><div class="label">Locked accounts</div></div>
+  <div class="card"><div class="num">{{ unresolved|length }}</div><div class="label">Events needing review</div></div>
+  <div class="card"><div class="num">{{ failed_logins|length }}</div><div class="label">Recent failed logins</div></div>
+</div>
+
+{% if locked_accounts %}
+<h3 style="font-family:'Manrope',sans-serif; color:#16243E; font-size:15px; margin: 24px 0 10px;">Locked Accounts</h3>
+<table style="margin-bottom: 28px;">
+  <thead><tr><th>Email</th><th>Role</th><th>Locked Until</th><th>Action</th></tr></thead>
+  <tbody>
+    {% for u in locked_accounts %}
+    <tr>
+      <td>{{ u.email }}</td>
+      <td>{{ u.role }}</td>
+      <td>{{ u.locked_until }}</td>
+      <td>
+        <form method="POST" action="{{ url_for('admin.unlock_account', user_id=u.id) }}" style="display:inline;">
+          <button type="submit" style="background:#24705A; color:white; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;">Unlock</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if unresolved %}
+<h3 style="font-family:'Manrope',sans-serif; color:#16243E; font-size:15px; margin: 24px 0 10px;">Events Needing Review</h3>
+<table style="margin-bottom: 28px;">
+  <thead><tr><th>Time</th><th>Event</th><th>Account</th><th>Details</th><th>IP</th><th></th></tr></thead>
+  <tbody>
+    {% for e in unresolved %}
+    <tr>
+      <td>{{ e.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td><span class="badge new">{{ e.event_type }}</span></td>
+      <td>{{ e.user_email or '—' }}</td>
+      <td>{{ e.description or '—' }}</td>
+      <td>{{ e.ip_address or '—' }}</td>
+      <td>
+        <form method="POST" action="{{ url_for('admin.resolve_event', event_id=e.id) }}" style="display:inline;">
+          <button type="submit" style="background:transparent; color:#6B7280; border:1px solid #D9E2EC; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;">Mark Resolved</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<h3 style="font-family:'Manrope',sans-serif; color:#16243E; font-size:15px; margin: 24px 0 10px;">Recent Security Events</h3>
+<table>
+  <thead><tr><th>Time</th><th>Event</th><th>Account</th><th>Details</th><th>IP</th></tr></thead>
+  <tbody>
+    {% for e in recent_events %}
+    <tr>
+      <td>{{ e.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>{{ e.event_type }}</td>
+      <td>{{ e.user_email or '—' }}</td>
+      <td>{{ e.description or '—' }}</td>
+      <td>{{ e.ip_address or '—' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5">No security events recorded yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

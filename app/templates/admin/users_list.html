@@ -1,0 +1,23 @@
+{% extends "admin/base.html" %}
+{% block title %}Users & Roles{% endblock %}
+{% block heading %}Users &amp; Roles{% endblock %}
+{% block content %}
+<table>
+  <thead>
+    <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last Login</th></tr>
+  </thead>
+  <tbody>
+    {% for u in users %}
+    <tr>
+      <td>{{ u.name }}</td>
+      <td>{{ u.email }}</td>
+      <td>{{ u.role }}</td>
+      <td>{{ u.account_status }}</td>
+      <td>{{ u.last_login_at.strftime('%Y-%m-%d %H:%M') if u.last_login_at else 'Never' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5">No users yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

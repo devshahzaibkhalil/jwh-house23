@@ -1,0 +1,22 @@
+JAMES WHOLESALE HOMES CHATBOT - PROFESSIONAL UI UPDATE
+
+1. Stop the old server with Ctrl+C.
+2. Extract this ZIP to your Desktop.
+3. To preserve old leads, copy the old file:
+   jwh-chatbot-resumed\instance\jwh.db
+   into:
+   jwh-chatbot-professional\instance\jwh.db
+4. Open Command Prompt in the new folder.
+5. Use Python 3.12:
+   py -3.12 -m venv venv
+   venv\Scripts\activate
+   pip install -r requirements.txt
+6. If no database was copied, run:
+   python seed.py
+   python seed_faq.py
+7. Start:
+   python run.py
+8. Open:
+   http://127.0.0.1:5000
+
+The root page now contains only the floating chatbot icon and the chatbot window.

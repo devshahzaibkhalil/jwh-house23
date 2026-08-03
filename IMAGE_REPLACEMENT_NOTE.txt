@@ -1,0 +1,6 @@
+Property card images updated:
+- Apartment Building -> app/static/img/property-types/apartment-building.jpg
+- Medical Building -> app/static/img/property-types/medical-building.jpg
+- Retail Property -> app/static/img/property-types/retail-property.jpg
+
+If the old images remain visible, restart the Flask server and hard-refresh the browser with Ctrl+F5.

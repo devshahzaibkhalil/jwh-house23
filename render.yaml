@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: jwh-chatbot
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python seed.py && gunicorn run:app --bind 0.0.0.0:$PORT --workers 2 --timeout 60"
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:////opt/render/project/data/jwh.db
+      - key: CHAT_FRAME_ANCESTORS
+        value: "*"
+      - key: FORCE_HTTPS
+        value: "1"
+      - key: SHOW_DEV_OTP
+        value: "0"
+      - key: OWNER_EMAIL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_DEFAULT_SENDER
+        sync: false
+      - key: MAIL_SENDER_NAME
+        value: "James Wholesale Homes"
+      - key: ADMIN_BASE_URL
+        sync: false
+    disk:
+      name: jwh-data
+      mountPath: /opt/render/project/data
+      sizeGB: 1

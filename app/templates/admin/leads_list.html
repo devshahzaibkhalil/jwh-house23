@@ -1,0 +1,29 @@
+{% extends "admin/base.html" %}
+{% block title %}Leads{% endblock %}
+{% block heading %}Leads{% endblock %}
+{% block content %}
+<table>
+  <thead>
+    <tr>
+      <th>Reference</th><th>Name</th><th>Type</th><th>Email</th><th>Phone</th>
+      <th>Status</th><th>Priority</th><th>Submitted</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for lead in leads %}
+    <tr>
+      <td><a class="reflink" href="{{ url_for('admin.lead_detail', lead_id=lead.id) }}">{{ lead.reference_number }}</a></td>
+      <td>{{ lead.full_name }}</td>
+      <td>{{ lead.lead_type }}</td>
+      <td>{{ lead.email }}</td>
+      <td>{{ lead.phone }}</td>
+      <td><span class="badge new">{{ lead.status }}</span></td>
+      <td>{{ lead.priority }}</td>
+      <td>{{ lead.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8">No leads yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

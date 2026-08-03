@@ -1,0 +1,38 @@
+{% extends "admin/base.html" %}
+{% block title %}Account Settings{% endblock %}
+{% block heading %}Account Settings{% endblock %}
+{% block content %}
+<div class="settings-intro">
+  <div>
+    <span class="settings-kicker">SECURE ACCOUNT CONTROL</span>
+    <h2>Update administrator access</h2>
+    <p>Change the sign-in email or password for the currently logged-in administrator. Your current password is required to confirm account changes.</p>
+  </div>
+  <div class="current-account"><small>Current account</small><strong>{{ user.email }}</strong></div>
+</div>
+
+<div class="settings-grid">
+  <section class="settings-card">
+    <div class="settings-card-head"><span>1</span><div><strong>Change email address</strong><small>This becomes the email used on the admin login screen.</small></div></div>
+    <form method="POST" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="change_email">
+      <label>New administrator email<input type="email" name="new_email" value="{{ user.email }}" required></label>
+      <label>Current password<input type="password" name="current_password" autocomplete="current-password" required></label>
+      <button class="settings-primary" type="submit">Update Email</button>
+    </form>
+  </section>
+
+  <section class="settings-card">
+    <div class="settings-card-head"><span>2</span><div><strong>Change password</strong><small>Use a unique passphrase containing at least 15 characters.</small></div></div>
+    <form method="POST" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="change_password">
+      <label>Current password<input type="password" name="current_password" autocomplete="current-password" required></label>
+      <label>New password<input type="password" name="new_password" minlength="15" maxlength="128" autocomplete="new-password" required></label>
+      <label>Confirm new password<input type="password" name="confirm_password" minlength="15" maxlength="128" autocomplete="new-password" required></label>
+      <button class="settings-primary" type="submit">Update Password</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

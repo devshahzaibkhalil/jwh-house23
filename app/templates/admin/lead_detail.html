@@ -1,0 +1,30 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ lead.reference_number }}{% endblock %}
+{% block heading %}{{ lead.reference_number }}{% endblock %}
+{% block content %}
+<div class="cards">
+  <div class="card"><div class="num" style="font-size:16px;">{{ lead.full_name }}</div><div class="label">Full name</div></div>
+  <div class="card"><div class="num" style="font-size:16px;">{{ lead.lead_type }}</div><div class="label">Lead type</div></div>
+  <div class="card"><div class="num" style="font-size:16px;">{{ lead.client_classification }}</div><div class="label">Classification</div></div>
+  <div class="card"><div class="num" style="font-size:16px;">{{ lead.status }}</div><div class="label">Status</div></div>
+</div>
+
+<table>
+  <tbody>
+    <tr><th>Email</th><td>{{ lead.email }} {% if lead.email_verified %}✅{% endif %}</td></tr>
+    <tr><th>Phone</th><td>{{ lead.phone }} {% if lead.phone_verified %}✅{% endif %}</td></tr>
+    <tr><th>Preferred contact</th><td>{{ lead.preferred_contact_day }} — {{ lead.preferred_contact_time }} ({{ lead.preferred_time_zone }})</td></tr>
+    <tr><th>Question</th><td>{{ lead.user_question or "—" }}</td></tr>
+    {% if lead.property_details %}
+    <tr><th>Property type</th><td>{{ lead.property_details.property_type }}</td></tr>
+    <tr><th>Location</th><td>{{ lead.property_details.city }}, {{ lead.property_details.state }} {{ lead.property_details.zip_code }}</td></tr>
+    <tr><th>Selling range</th><td>${{ lead.property_details.selling_min }} – ${{ lead.property_details.selling_max }}</td></tr>
+    {% endif %}
+    {% if lead.buyer_criteria %}
+    <tr><th>Buying budget</th><td>${{ lead.buyer_criteria.budget_min }} – ${{ lead.buyer_criteria.budget_max }}</td></tr>
+    <tr><th>Preferred location</th><td>{{ lead.buyer_criteria.preferred_city }}, {{ lead.buyer_criteria.preferred_state }}</td></tr>
+    {% endif %}
+    <tr><th>Submitted</th><td>{{ lead.created_at }}</td></tr>
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "admin/base.html" %}
+{% block title %}Overview{% endblock %}
+{% block heading %}Overview{% endblock %}
+{% block content %}
+<div style="min-height:180px; margin-bottom:22px; padding:26px; border-radius:16px; display:flex; align-items:flex-end; color:white; background:linear-gradient(90deg, rgba(20,35,63,.96), rgba(20,35,63,.54)), url('{{ url_for('static', filename='img/welcome/sell-home.webp') }}') center/cover no-repeat; box-shadow:0 14px 34px rgba(20,35,63,.16);">
+  <div>
+    <span style="display:block; color:#FFB59D; text-transform:uppercase; letter-spacing:.12em; font-size:10px; font-weight:800;">James Wholesale Homes</span>
+    <h2 style="margin:6px 0 5px; font-family:'Manrope',sans-serif; font-size:25px;">Lead and Property Operations</h2>
+    <p style="margin:0; max-width:620px; color:#D8E2F0; font-size:13px; line-height:1.55;">Review qualified buyer, seller and funding enquiries, follow conversation activity and manage administrator access securely.</p>
+  </div>
+</div>
+<div class="cards">
+  <div class="card"><div class="num">{{ cards.total_leads }}</div><div class="label">Total Leads</div></div>
+  <div class="card"><div class="num">{{ cards.new_leads }}</div><div class="label">New Leads</div></div>
+  <div class="card"><div class="num">{{ cards.buyer_leads }}</div><div class="label">Buyer Leads</div></div>
+  <div class="card"><div class="num">{{ cards.seller_leads }}</div><div class="label">Seller Leads</div></div>
+</div>
+<p style="color:#6B7280; font-size:14px;">Go to <a class="reflink" href="{{ url_for('admin.leads_list') }}">Leads</a> to view and manage submitted enquiries.</p>
+{% endblock %}
