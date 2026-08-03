@@ -1,0 +1,72 @@
+{% extends "admin/base.html" %}
+{% block title %}Email Diagnostics{% endblock %}
+{% block heading %}Email Diagnostics{% endblock %}
+{% block content %}
+
+<div class="cards">
+  <div class="card"><div class="num">{{ sent_count }}</div><div class="label">Delivered (last 50)</div></div>
+  <div class="card"><div class="num" style="color:#B42318">{{ failed_count }}</div><div class="label">Failed (last 50)</div></div>
+</div>
+
+<div class="card" style="margin-bottom:22px">
+  <strong style="font-family:'Manrope',sans-serif;color:#16243E">Configuration</strong>
+  <table style="margin-top:12px">
+    <tr><th>Setting</th><th>Current value on this server</th><th>Status</th></tr>
+    {% for check in checks %}
+    <tr>
+      <td style="font-weight:600">{{ check.name }}</td>
+      <td style="overflow-wrap:anywhere">{{ check.value }}</td>
+      <td>
+        {% if check.ok %}
+          <span class="badge qualified">OK</span>
+        {% else %}
+          <span class="badge" style="background:#FFF0EE;color:#9F231B">Check</span>
+          <div style="margin-top:6px;color:#6B7280;font-size:11px;line-height:1.5">{{ check.hint }}</div>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card" style="margin-bottom:22px">
+  <strong style="font-family:'Manrope',sans-serif;color:#16243E">Send a test email</strong>
+  <p style="color:#6B7280;font-size:12px;margin:6px 0 0">
+    Leave blank to send to OWNER_EMAIL. The exact provider response appears below on failure.
+  </p>
+  <form method="post" action="{{ url_for('admin.email_diagnostics_test') }}"
+        style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="email" name="recipient" placeholder="recipient@example.com"
+           style="flex:1;min-width:240px;padding:10px 11px;border:1px solid #C9D3DF;border-radius:9px;font-size:13px">
+    <button type="submit" style="padding:10px 20px;border:0;border-radius:9px;color:white;background:#E3562B;font-weight:800;cursor:pointer">
+      Send test
+    </button>
+  </form>
+</div>
+
+<div class="card">
+  <strong style="font-family:'Manrope',sans-serif;color:#16243E">Delivery log</strong>
+  <table style="margin-top:12px">
+    <tr><th>When</th><th>Recipient</th><th>Subject</th><th>Status</th><th>Error detail</th></tr>
+    {% for log in logs %}
+    <tr>
+      <td style="white-space:nowrap">{{ log.created_at.strftime('%Y-%m-%d %H:%M') if log.created_at else '—' }}</td>
+      <td style="overflow-wrap:anywhere">{{ log.recipient }}</td>
+      <td style="overflow-wrap:anywhere">{{ log.subject }}</td>
+      <td>
+        {% if log.delivery_status == 'sent' %}
+          <span class="badge qualified">Sent</span>
+        {% else %}
+          <span class="badge" style="background:#FFF0EE;color:#9F231B">{{ log.delivery_status|title }}</span>
+        {% endif %}
+      </td>
+      <td style="overflow-wrap:anywhere;color:#9F231B;font-size:12px">{{ log.error_details or '' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" style="color:#6B7280">No email attempts recorded yet.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+{% endblock %}
