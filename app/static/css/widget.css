@@ -161,7 +161,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   flex-direction: column;
   border-radius: 22px;
   background: var(--jwh-white);
-  box-shadow: var(--jwh-shadow);
+  box-shadow: none !important;
   border: 1px solid rgba(20, 35, 63, .12);
   isolation: isolate;
 }
