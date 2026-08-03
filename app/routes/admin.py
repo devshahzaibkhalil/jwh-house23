@@ -210,6 +210,101 @@ def security_centre():
     )
 
 
+@admin_bp.route("/email-diagnostics")
+@login_required
+@permission_required("*")
+def email_diagnostics():
+    """Surface why lead notification emails did or did not leave the server."""
+    from app.services.notifications import (
+        _clean, _recipient_list, _active_provider, _provider_key, SINGLE_SENDER_PROVIDERS,
+    )
+
+    provider = _active_provider()
+    api_key = _provider_key(provider)
+    sender = _clean(current_app.config.get("MAIL_DEFAULT_SENDER"))
+    sender_name = _clean(current_app.config.get("MAIL_SENDER_NAME"))
+    owners = _recipient_list(current_app.config.get("OWNER_EMAIL"))
+
+    sandbox = sender.endswith("@resend.dev")
+    key_prefix_ok = {
+        "resend": api_key.startswith("re_"),
+        "sendgrid": api_key.startswith("SG."),
+        "smtp2go": api_key.startswith("api-"),
+    }.get(provider, True)
+
+    checks = [
+        {
+            "name": "MAIL_PROVIDER",
+            "value": provider,
+            "ok": True,
+            "hint": "",
+        },
+        {
+            "name": f"{provider.upper()}_API_KEY",
+            "value": f"{api_key[:6]}…{api_key[-4:]} ({len(api_key)} chars)" if api_key else "(not set)",
+            "ok": bool(api_key) and key_prefix_ok,
+            "hint": "Must be set, and match the provider's key format. Generate one in the provider dashboard.",
+        },
+        {
+            "name": "MAILJET_SECRET_KEY",
+            "value": "set" if _clean(current_app.config.get("MAILJET_SECRET_KEY")) else "(not set)",
+            "ok": bool(_clean(current_app.config.get("MAILJET_SECRET_KEY"))),
+            "hint": "Mailjet needs an API key AND a secret key. Both are on the API Key Management page.",
+        } if provider == "mailjet" else None,
+        {
+            "name": "MAIL_DEFAULT_SENDER",
+            "value": sender or "(not set)",
+            "ok": bool(sender) and "@" in sender and not sandbox,
+            "hint": (
+                "Must be an address you verified with the provider. "
+                + ("Add it under the provider's Senders screen and click the confirmation link it emails you."
+                   if provider in SINGLE_SENDER_PROVIDERS else
+                   "Resend verifies whole domains only, so it needs DNS access. Switch MAIL_PROVIDER to "
+                   "smtp2go or mailjet to verify one address by email link instead.")
+            ),
+        },
+        {
+            "name": "MAIL_SENDER_NAME",
+            "value": sender_name or "(not set)",
+            "ok": '"' not in str(current_app.config.get("MAIL_SENDER_NAME") or ""),
+            "hint": "Must not contain quote characters — they corrupt the From header and the provider rejects it.",
+        },
+        {
+            "name": "OWNER_EMAIL",
+            "value": ", ".join(owners) or "(not set)",
+            "ok": bool(owners) and not (sandbox and provider == "resend" and len(owners) > 1),
+            "hint": "The inbox that receives new lead notifications. Comma-separate for several.",
+        },
+    ]
+
+    checks = [item for item in checks if item]
+
+    logs = EmailLog.query.order_by(EmailLog.created_at.desc()).limit(50).all()
+    failed = sum(1 for item in logs if item.delivery_status == "failed")
+    return render_template(
+        "admin/email_diagnostics.html",
+        checks=checks,
+        logs=logs,
+        failed_count=failed,
+        sent_count=sum(1 for item in logs if item.delivery_status == "sent"),
+    )
+
+
+@admin_bp.route("/email-diagnostics/test", methods=["POST"])
+@login_required
+@permission_required("*")
+def email_diagnostics_test():
+    from app.services.notifications import send_test_email
+
+    target = (request.form.get("recipient") or "").strip() or None
+    try:
+        success, message = send_test_email(target)
+    except Exception as exc:  # noqa: BLE001
+        success, message = False, str(exc)
+    flash(message, "success" if success else "error")
+    return redirect(url_for("admin.email_diagnostics"))
+
+
 @admin_bp.route("/security/unlock/<user_id>", methods=["POST"])
 @login_required
 @permission_required("*")
@@ -299,5 +394,3 @@ def account_settings():
 def users_list():
     users = User.query.order_by(User.created_at.desc()).all()
     return render_template("admin/users_list.html", users=users)
-
-
