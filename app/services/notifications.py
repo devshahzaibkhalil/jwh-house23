@@ -11,6 +11,7 @@ API call is unaffected by that restriction and needs no extra dependency.
 """
 from __future__ import annotations
 
+import base64
 import json
 import urllib.error
 import urllib.request
@@ -24,6 +25,22 @@ from app import db
 from app.models.email_log import EmailLog
 
 RESEND_API_URL = "https://api.resend.com/emails"
+
+
+def _clean(value) -> str:
+    """Strip whitespace, newlines and stray wrapping quotes from a config value.
+
+    Render's environment editor stores values literally, so a value pasted from
+    a .env file as MAIL_SENDER_NAME="James Wholesale Homes" keeps its quotes.
+    Those quotes then get re-escaped by formataddr into an invalid From header
+    and Resend rejects the whole request with a 422 validation error.
+    """
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in {'"', "'"}:
+        text = text[1:-1].strip()
+    return text
 
 
 def _record_log(lead_id, recipient, subject, status, error=None):
@@ -42,53 +59,253 @@ def _record_log(lead_id, recipient, subject, status, error=None):
 
 def _recipient_list(value: str | None) -> list[str]:
     """Return clean addresses from a comma/semicolon-separated setting."""
+    value = _clean(value)
     if not value:
         return []
-    return [item.strip() for item in value.replace(";", ",").split(",") if item.strip()]
+    return [cleaned for item in value.replace(";", ",").split(",") if (cleaned := _clean(item))]
+
+
+PROVIDER_ENDPOINTS = {
+    "smtp2go": "https://api.smtp2go.com/v3/email/send",
+    "mailjet": "https://api.mailjet.com/v3.1/send",
+    "brevo": "https://api.brevo.com/v3/smtp/email",
+    "sendgrid": "https://api.sendgrid.com/v3/mail/send",
+    "resend": "https://api.resend.com/emails",
+}
+
+# Providers that let you verify a single SENDER ADDRESS by clicking a link
+# emailed to it, requiring no DNS records and no domain ownership.
+SINGLE_SENDER_PROVIDERS = {"smtp2go", "mailjet", "brevo", "sendgrid"}
+
+
+def _active_provider() -> str:
+    """Which transport to use.
+
+    Explicit MAIL_PROVIDER wins. Otherwise the provider is inferred from
+    whichever API key is present, so an existing Resend-only deployment keeps
+    working with no config change.
+    """
+    chosen = _clean(current_app.config.get("MAIL_PROVIDER")).lower()
+    if chosen in PROVIDER_ENDPOINTS:
+        return chosen
+    for candidate in ("mailjet", "smtp2go", "brevo", "sendgrid", "resend"):
+        if _clean(current_app.config.get(f"{candidate.upper()}_API_KEY")):
+            return candidate
+    # Default. Mailjet verifies a single sender address by emailing it a
+    # confirmation link: no DNS records, no domain, no phone number.
+    return "mailjet"
+
+
+def _provider_key(provider: str) -> str:
+    generic = _clean(current_app.config.get("MAIL_API_KEY"))
+    specific = _clean(current_app.config.get(f"{provider.upper()}_API_KEY"))
+    return specific or generic
+
+
+def _build_request(provider, api_key, sender, sender_name, recipient, subject, text_body, html_body):
+    """Return a urllib Request shaped for the chosen provider's API."""
+    url = PROVIDER_ENDPOINTS[provider]
+
+    if provider == "smtp2go":
+        payload = {
+            "sender": formataddr((sender_name, sender)),
+            "to": [recipient],
+            "subject": subject,
+            "text_body": text_body,
+        }
+        if html_body:
+            payload["html_body"] = html_body
+        headers = {"Content-Type": "application/json", "X-Smtp2go-Api-Key": api_key}
+
+    elif provider == "mailjet":
+        # Mailjet authenticates with an API key plus a secret key over HTTP Basic.
+        secret = _clean(current_app.config.get("MAILJET_SECRET_KEY"))
+        if not secret:
+            raise RuntimeError("MAILJET_SECRET_KEY is not set on this server")
+        message = {
+            "From": {"Email": sender, "Name": sender_name},
+            "To": [{"Email": recipient}],
+            "Subject": subject,
+            "TextPart": text_body,
+        }
+        if html_body:
+            message["HTMLPart"] = html_body
+        payload = {"Messages": [message]}
+        basic = base64.b64encode(f"{api_key}:{secret}".encode("utf-8")).decode("ascii")
+        headers = {"Content-Type": "application/json", "Authorization": f"Basic {basic}"}
+
+    elif provider == "brevo":
+        payload = {
+            "sender": {"email": sender, "name": sender_name},
+            "to": [{"email": recipient}],
+            "subject": subject,
+            "textContent": text_body,
+        }
+        if html_body:
+            payload["htmlContent"] = html_body
+        headers = {"Content-Type": "application/json", "accept": "application/json", "api-key": api_key}
+
+    elif provider == "sendgrid":
+        content = [{"type": "text/plain", "value": text_body}]
+        if html_body:
+            content.append({"type": "text/html", "value": html_body})
+        payload = {
+            "personalizations": [{"to": [{"email": recipient}]}],
+            "from": {"email": sender, "name": sender_name},
+            "subject": subject,
+            "content": content,
+        }
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+
+    else:  # resend
+        payload = {
+            "from": formataddr((sender_name, sender)),
+            "to": [recipient],
+            "subject": subject,
+            "text": text_body,
+        }
+        if html_body:
+            payload["html"] = html_body
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+
+    return urllib.request.Request(
+        url, data=json.dumps(payload).encode("utf-8"), method="POST", headers=headers
+    )
 
 
 def _smtp_send(recipient: str, subject: str, text_body: str, html_body: str | None = None) -> None:
-    """Send an email via the Resend HTTPS API.
+    """Send an email over an HTTPS provider API.
 
-    Kept as ``_smtp_send`` so every call site below is unchanged; only the
-    transport underneath it moved from raw SMTP sockets to an HTTPS POST,
-    which Render (and most PaaS hosts) never blocks.
+    Kept as ``_smtp_send`` so every call site below is unchanged. Raw SMTP is
+    never used: Render blocks outbound ports 25/465/587 on free instances and
+    blocks port 25 on every instance, while an HTTPS POST always goes through.
+
+    Brevo (the default) and SendGrid allow a single sender address to be
+    verified by clicking a link in a confirmation email, so neither one needs
+    access to domain DNS records. Resend remains supported for anyone who has
+    already verified a domain there, but it is no longer the default because
+    it offers no single-sender option.
     """
-    api_key = current_app.config.get("RESEND_API_KEY")
-    sender = current_app.config.get("MAIL_DEFAULT_SENDER")
-    sender_name = current_app.config.get("MAIL_SENDER_NAME", "James Wholesale Homes")
+    provider = _active_provider()
+    api_key = _provider_key(provider)
+    sender = _clean(current_app.config.get("MAIL_DEFAULT_SENDER"))
+    sender_name = _clean(current_app.config.get("MAIL_SENDER_NAME")) or "James Wholesale Homes"
+    recipient = _clean(recipient)
     timeout = current_app.config.get("MAIL_TIMEOUT", 20)
 
-    if not api_key or not sender:
-        raise RuntimeError("RESEND_API_KEY and MAIL_DEFAULT_SENDER are required")
+    if not api_key:
+        raise RuntimeError(
+            f"No API key configured for the '{provider}' mail provider. "
+            f"Set {provider.upper()}_API_KEY on the server."
+        )
+    if not sender:
+        raise RuntimeError("MAIL_DEFAULT_SENDER is not set on this server")
+    if "@" not in sender:
+        raise RuntimeError(f"MAIL_DEFAULT_SENDER is not a valid address: {sender!r}")
+    if provider == "resend" and not api_key.startswith("re_"):
+        raise RuntimeError(
+            "RESEND_API_KEY does not look like a Resend key (it must start with 're_'). "
+            "Check for a stray quote, space or newline in the environment variable."
+        )
+    if provider == "sendgrid" and not api_key.startswith("SG."):
+        raise RuntimeError("SENDGRID_API_KEY does not look like a SendGrid key (it must start with 'SG.').")
+    if provider == "smtp2go" and not api_key.startswith("api-"):
+        raise RuntimeError("SMTP2GO_API_KEY does not look like an SMTP2GO key (it must start with 'api-').")
 
-    payload = {
-        "from": formataddr((sender_name, sender)),
-        "to": [recipient],
-        "subject": subject,
-        "text": text_body,
-    }
-    if html_body:
-        payload["html"] = html_body
-
-    req = urllib.request.Request(
-        RESEND_API_URL,
-        data=json.dumps(payload).encode("utf-8"),
-        method="POST",
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-        },
-    )
+    req = _build_request(provider, api_key, sender, sender_name, recipient, subject, text_body, html_body)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as response:
             if not (200 <= response.status < 300):
-                raise RuntimeError(f"Resend API returned status {response.status}")
+                raise RuntimeError(f"{provider} API returned status {response.status}")
+            body = response.read().decode("utf-8", errors="replace")
+            _check_soft_failure(provider, body, sender, recipient)
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"Resend API error {exc.code}: {detail}") from exc
+        raise RuntimeError(
+            f"{provider} API error {exc.code}: {detail} | "
+            f"{_explain_provider_error(provider, exc.code, detail, sender, recipient)}"
+        ) from exc
     except urllib.error.URLError as exc:
-        raise RuntimeError(f"Resend API unreachable: {exc.reason}") from exc
+        raise RuntimeError(f"{provider} API unreachable: {exc.reason}") from exc
+
+
+def _check_soft_failure(provider, body: str, sender: str, recipient: str) -> None:
+    """Catch providers that answer HTTP 200 while still refusing the message.
+
+    SMTP2GO and Mailjet both do this: the request was well formed, so the status
+    is 200, but the message itself was rejected (unverified sender, suppressed
+    address). Without this check a refused email would be logged as "sent".
+    """
+    if not body:
+        return
+    try:
+        data = json.loads(body)
+    except (ValueError, TypeError):
+        return
+
+    if provider == "smtp2go":
+        payload = data.get("data") or {}
+        failures = payload.get("failures") or []
+        if data.get("error") or failures or payload.get("succeeded", 1) == 0:
+            reason = data.get("error") or "; ".join(str(item) for item in failures) or "unknown reason"
+            raise RuntimeError(
+                f"smtp2go accepted the request but refused the message: {reason} | "
+                f"FIX: confirm '{sender}' is listed and Active under SMTP2GO -> Sending -> Verified Senders."
+            )
+
+    elif provider == "mailjet":
+        for message in data.get("Messages", []):
+            if str(message.get("Status", "success")).lower() != "success":
+                errors = "; ".join(
+                    str(err.get("ErrorMessage") or err) for err in message.get("Errors", [])
+                ) or "unknown reason"
+                raise RuntimeError(
+                    f"mailjet accepted the request but refused the message: {errors} | "
+                    f"FIX: confirm '{sender}' is validated under Mailjet -> Senders & Domains."
+                )
+
+
+def _explain_provider_error(provider, code, detail, sender, recipient) -> str:
+    """Turn a raw provider HTTP failure into a plain-English next step."""
+    lowered = (detail or "").lower()
+
+    if code in (401, 403) and ("unauthorized" in lowered or "api key" in lowered or "api-key" in lowered):
+        if provider == "mailjet":
+            return "FIX: the MAILJET_API_KEY / MAILJET_SECRET_KEY pair is wrong. Both are required - copy them from Mailjet -> Account -> API Key Management."
+        return f"FIX: the {provider.upper()}_API_KEY is wrong, revoked or mistyped. Generate a fresh key and update it on Render."
+
+    if "sender" in lowered and ("not valid" in lowered or "not verified" in lowered or "does not exist" in lowered):
+        return (
+            f"FIX: '{sender}' has not been verified as a sender in {provider}. Add it under the provider's "
+            "Senders screen and click the confirmation link that arrives in that inbox. No DNS access is needed."
+        )
+
+    if provider == "resend":
+        if code == 401:
+            return "FIX: the RESEND_API_KEY is wrong or revoked. Create a fresh key at resend.com/api-keys."
+        if code == 403 or "testing emails" in lowered or "own email" in lowered:
+            if sender.endswith("@resend.dev"):
+                return (
+                    f"FIX: {sender} is Resend's shared sandbox sender and can only deliver to the address that "
+                    f"owns the Resend account. '{recipient}' is not that address. Either set OWNER_EMAIL to your "
+                    "Resend account address, or switch MAIL_PROVIDER to brevo/sendgrid, which verify a single "
+                    "sender by email link and need no DNS access."
+                )
+            return (
+                f"FIX: the domain behind {sender} is not verified in Resend, and Resend has no single-sender "
+                "option. Switch MAIL_PROVIDER to brevo or sendgrid to send without DNS access."
+            )
+        if code == 422:
+            return (
+                "FIX: Resend rejected a field, almost always the From header. Check MAIL_SENDER_NAME and "
+                "MAIL_DEFAULT_SENDER on Render contain no quote characters."
+            )
+
+    if code == 400:
+        return f"FIX: {provider} rejected the request payload. Check MAIL_DEFAULT_SENDER and MAIL_SENDER_NAME for stray quotes or typos."
+    if code == 429:
+        return f"FIX: the {provider} sending limit was hit. Wait for the quota to reset or upgrade the plan."
+    return "FIX: see the raw provider response above."
 
 
 def _money(value):
