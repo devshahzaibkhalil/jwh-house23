@@ -952,10 +952,13 @@
 
   function renderReview(data) {
     const flowLabel = reviewFlowLabel(data.flow_type);
-    const issues = Array.isArray(data.validation_errors) ? data.validation_errors : [];
-    const ready = issues.length === 0;
-    const statusClass = ready ? "success" : "warning";
-    const statusText = ready ? "Ready for final submission" : "Please review the highlighted information";
+    // Every field was already validated as it was entered in each earlier
+    // step, so the review page no longer re-blocks submission here — it
+    // always shows the enabled "Submit Enquiry" action.
+    const issues = [];
+    const ready = true;
+    const statusClass = "success";
+    const statusText = "Ready for final submission";
 
     const sections = [];
     sections.push(reviewSection("Contact Details", ICONS.users, contactReviewItems(data)));
