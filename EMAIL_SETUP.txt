@@ -1,0 +1,139 @@
+EMAIL SETUP (NO DOMAIN OR DNS ACCESS REQUIRED)
+================================================
+
+Mail is sent over an HTTPS provider API, never SMTP, because Render blocks
+outbound SMTP ports 25/465/587.
+
+Four providers are supported that verify a single SENDER ADDRESS by
+emailing a confirmation link to it. None needs a DNS record and none needs
+you to own a domain - a plain Gmail address is enough:
+
+  Mailjet   (default)  6000 emails/month free   no phone number required
+  SMTP2GO              1000 emails/month free   no phone number required
+  Brevo                9000 emails/month free   phone verification required
+  SendGrid             100 emails/day free      phone/2FA usually required
+
+If Brevo's signup rejects your phone number, use SMTP2GO or Mailjet. That
+error comes from Brevo's anti-fraud screening, not from this app, and it
+often refuses VoIP numbers and certain countries outright.
+
+Resend is NOT used and is not required. It only verifies whole domains and
+has no single-sender option, so it cannot work without DNS access. The code
+still supports it for anyone who already has a verified domain there, but
+you can ignore it entirely.
+
+Nothing in the code changes; you only set environment variables on Render.
+
+
+OPTION A - MAILJET (default, no phone number needed, 6000/month)
+-----------------------------------------------------------------
+Mailjet is the only provider here that issues TWO credentials. You need
+both the API Key and the Secret Key, or every send fails with a 401.
+
+1. Sign up at https://www.mailjet.com
+2. Senders & Domains -> Add a sender address. Enter the address you want
+   mail to come FROM (a Gmail address is fine).
+3. Open that inbox and click the confirmation link Mailjet sends.
+   Do not skip this - an unvalidated sender is silently refused.
+4. Account Settings -> API Key Management. Copy BOTH values.
+5. On Render -> your service -> Environment, set:
+
+     MAIL_PROVIDER=mailjet
+     MAILJET_API_KEY=your-api-key
+     MAILJET_SECRET_KEY=your-secret-key
+     MAIL_DEFAULT_SENDER=the-address-you-verified@example.com
+     MAIL_SENDER_NAME=James Wholesale Homes
+     OWNER_EMAIL=shezada1224@gmail.com
+     ADMIN_BASE_URL=https://your-app.onrender.com
+
+   Delete SMTP2GO_API_KEY and RESEND_API_KEY if they exist from an
+   earlier deploy, so they cannot be picked up instead.
+
+6. Redeploy, then open Admin -> Email Diagnostics and press "Send test".
+   The page shows a MAILJET_SECRET_KEY row whenever Mailjet is active, so
+   a missing second credential is visible immediately.
+
+
+OPTION B - SMTP2GO (no phone number needed, 1000/month)
+--------------------------------------------------------
+1. Sign up at https://www.smtp2go.com/pricing (Free plan, 1000/month).
+2. Go to Sending -> Verified Senders -> Single Sender Emails -> Add.
+   Enter the address mail should come FROM (a Gmail address is fine).
+3. Open that inbox and click the verification link SMTP2GO sends.
+4. Go to Sending -> API Keys -> Add API Key. The key starts with "api-".
+5. On Render -> your service -> Environment, set:
+
+     MAIL_PROVIDER=smtp2go
+     SMTP2GO_API_KEY=api-your-key-here
+     MAIL_DEFAULT_SENDER=the-address-you-verified@example.com
+     MAIL_SENDER_NAME=James Wholesale Homes
+     OWNER_EMAIL=shezada1224@gmail.com
+     ADMIN_BASE_URL=https://your-app.onrender.com
+
+6. Redeploy, then open Admin -> Email Diagnostics and press "Send test".
+
+
+OPTION C - BREVO (only if its phone verification accepts your number)
+-----------------------------------------------------------------------
+1. Sign up at https://www.brevo.com
+2. Go to Senders, Domains & Dedicated IPs -> Senders -> Add a sender.
+   Enter the address you want mail to come FROM (a Gmail address is fine).
+3. Open that inbox and click the confirmation link Brevo sends.
+4. Go to SMTP & API -> API Keys -> Generate a new API key. It starts with
+   "xkeysib-".
+5. On Render -> your service -> Environment, set:
+
+     MAIL_PROVIDER=brevo
+     BREVO_API_KEY=xkeysib-your-key-here
+     MAIL_DEFAULT_SENDER=the-address-you-verified@example.com
+     MAIL_SENDER_NAME=James Wholesale Homes
+     OWNER_EMAIL=shezada1224@gmail.com
+
+   Remove any other provider key so it cannot be picked up.
+
+6. Redeploy, then open Admin -> Email Diagnostics and press "Send test".
+
+
+OPTION D - SENDGRID
+---------------------
+1. Sign up at https://sendgrid.com
+2. Settings -> Sender Authentication -> Single Sender Verification ->
+   Create New Sender. Fill in the form and click the link SendGrid emails
+   to that address.
+3. Settings -> API Keys -> Create API Key (Full Access or Mail Send).
+   It starts with "SG.".
+4. On Render set:
+
+     MAIL_PROVIDER=sendgrid
+     SENDGRID_API_KEY=SG.your-key-here
+     MAIL_DEFAULT_SENDER=the-address-you-verified@example.com
+     MAIL_SENDER_NAME=James Wholesale Homes
+     OWNER_EMAIL=shezada1224@gmail.com
+
+5. Redeploy and send a test from Admin -> Email Diagnostics.
+
+
+IMPORTANT NOTES
+-----------------
+* If a provider's signup screen blocks you (phone verification, region
+  checks, fraud screening), just pick another option above. The app needs
+  no code change - only the MAIL_PROVIDER value and that provider's key.
+
+* Never wrap values in quotes on Render. MAIL_SENDER_NAME must read
+  James Wholesale Homes, not "James Wholesale Homes". Quotes corrupt the
+  From header and the provider rejects the send. (The app now strips them
+  defensively, but set them correctly anyway.)
+
+* Sending FROM a gmail.com / yahoo.com address through any of these
+  works, but those messages can land in spam because the From domain does
+  not match the provider's signing domain. If a message is missing, check
+  the spam folder first, then mark it "Not spam". A verified domain is
+  still the better long-term answer once you have DNS access.
+
+* ADMIN_BASE_URL must be your live Render URL, e.g.
+  https://jwh-chatbot.onrender.com - otherwise the "view lead" link in
+  every notification points at localhost.
+
+* Whatever happens, the outcome of every send attempt is recorded and
+  shown at Admin -> Email Diagnostics, with the provider's exact error
+  message and a suggested fix.
