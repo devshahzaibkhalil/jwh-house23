@@ -1383,9 +1383,7 @@ body,
   border-radius: 24px !important;
   background: var(--jwh-white) !important;
   overflow: hidden !important;
-  box-shadow:
-    0 24px 70px rgba(15, 31, 57, 0.25),
-    0 8px 22px rgba(15, 31, 57, 0.12) !important;
+  box-shadow:none !important;
   isolation: isolate !important;
 }
 
