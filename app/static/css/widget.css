@@ -1383,9 +1383,8 @@ body,
   border-radius: 24px !important;
   background: var(--jwh-white) !important;
   overflow: hidden !important;
-  box-shadow:
-    0 24px 70px rgba(15, 31, 57, 0.25),
-    0 8px 22px rgba(15, 31, 57, 0.12) !important;
+  box-shadow: none !important;
+  filter: none !important;
   isolation: isolate !important;
 }
 
@@ -1417,11 +1416,15 @@ body,
 @media (max-width: 520px) {
   .jwh-window {
     position: fixed !important;
-    inset: auto 10px 10px auto !important;
-    width: calc(100vw - 20px) !important;
-    height: calc(100dvh - 20px) !important;
+    top: auto !important;
+    right: 12px !important;
+    bottom: 16px !important;
+    left: 12px !important;
+
+    width: auto !important;
+    height: min(560px, calc(100dvh - 90px)) !important;
     min-height: 0 !important;
-    max-height: calc(100dvh - 20px) !important;
+    max-height: calc(100dvh - 90px) !important;
     border-radius: 22px !important;
   }
 
