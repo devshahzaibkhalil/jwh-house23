@@ -161,7 +161,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   flex-direction: column;
   border-radius: 22px;
   background: var(--jwh-white);
-  box-shadow: none !important;
+  box-shadow: var(--jwh-shadow);
   border: 1px solid rgba(20, 35, 63, .12);
   isolation: isolate;
 }
@@ -1383,7 +1383,9 @@ body,
   border-radius: 24px !important;
   background: var(--jwh-white) !important;
   overflow: hidden !important;
-  box-shadow:none !important;
+  box-shadow:
+    0 24px 70px rgba(15, 31, 57, 0.25),
+    0 8px 22px rgba(15, 31, 57, 0.12) !important;
   isolation: isolate !important;
 }
 
